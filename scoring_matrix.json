@@ -1,0 +1,13 @@
+{
+    "malicious": 0.8,
+    "money_laundering": 1.0,
+    "insider_trading": 0.95,
+    "secrecy_breach": 0.6,
+    "bribery": 0.9,
+    "fraud": 1.0,
+    "phishing": 0.85,
+    "scam": 0.8,
+    "market_manipulation": 0.7,
+    "quid_pro_quo": 0.75
+}
+    
