@@ -1,49 +1,54 @@
 import json
+from pydantic import model_validator
 from pydantic_settings import BaseSettings
 from typing import Dict
 from pathlib import Path
 
 class Settings(BaseSettings):
-    OPENAI_API_KEY: str
-    MODEL_NAME: str = "gpt-4o-mini"
     CONFIDENCE_THRESHOLD: float = 0.6
-    CONFIDENCE_FLOOR: float = 0.5
-    
-    TONE_WEIGHTS: Dict[str, float] = {
-        "neutral": 1.0,
-        "aggressive": 1.3,
-        "secretive": 1.5,
-        "pressuring": 1.4,
-    }
+    CONFIDENCE_FLOOR: float = 1.0
+
+    AZURE_OPENAI_API_KEY: str
+    AZURE_OPENAI_ENDPOINT: str
+    AZURE_OPENAI_CHAT_DEPLOYMENT: str
+    AZURE_OPENAI_API_VERSION: str = "2024-02-15-preview"
 
     CRITICALITY_WEIGHTS: Dict[str, float] = {}
     
-    EMBEDDING_MODEL: str = "text-embedding-3-small"
-    EMBEDDING_DIMENSION: int = 1536
-    
-    TONE_DEVIATION_THRESHOLD: float = 0.4
-    
-    TONE_DEVIATION_WEIGHTS: Dict[str, float] = {
-        "low": 0.8,
-        "normal": 1.0,
-        "high": 1.2,
-        "very_high": 1.5,
-    }
-    
-    TONE_DEVIATION_THRESHOLDS: Dict[str, float] = {
-        "low": 0.2,
-        "normal": 0.4,
-        "high": 0.6,
-    }
-    
     CRITICALITY_LEVEL_THRESHOLDS: Dict[str, float] = {
-        "critical": 75.0,
-        "high": 50.0,
-        "medium": 25.0,
+        "critical": 50.0,
+        "high": 25.0,
+        "medium": 10.0,
+        "low": 0.0,
     }
     
     RISK_SCORE_SCALE: float = 100.0
-    CHROMA_PERSIST_DIR: str = ".chroma_db"
+
+    @model_validator(mode="after")
+    def normalize_thresholds(self) -> "Settings":
+        self.CRITICALITY_LEVEL_THRESHOLDS = self._normalize_thresholds(
+            self.CRITICALITY_LEVEL_THRESHOLDS
+        )
+        return self
+
+    @staticmethod
+    def _normalize_thresholds(value: Dict[str, float] | str | None) -> Dict[str, float]:
+        defaults = {"critical": 75.0, "high": 50.0, "medium": 25.0, "low": 0.0}
+        if isinstance(value, str):
+            try:
+                parsed = json.loads(value)
+            except Exception:
+                parsed = {}
+        else:
+            parsed = value or {}
+        merged = defaults.copy()
+        if isinstance(parsed, dict):
+            for key, val in parsed.items():
+                try:
+                    merged[key] = float(val)
+                except Exception:
+                    pass
+        return merged
 
     class Config:
         env_file = ".env"

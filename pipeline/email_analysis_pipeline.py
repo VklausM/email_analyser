@@ -1,11 +1,10 @@
-from typing import List, Dict, Optional, TypedDict
+from typing import List, Optional, TypedDict
 from langgraph.graph import StateGraph, START, END
 from datetime import datetime
 from schemas.email_models import EmailInput, EmailAnalysis, EmailScoringResult, PipelineOutput
 from agents.emails_agent import EmailAnalysisAgent
 from agents.scoring_agent import ScoringAgent
 from services.data_loader import get_data_loader_service
-from services.embedding_service import get_sender_profile_service
 
 class PipelineState(TypedDict):
     file_path: str
@@ -20,7 +19,6 @@ class EmailAnalysisPipeline:
         self.analysis_agent = EmailAnalysisAgent()
         self.scoring_agent = ScoringAgent()
         self.data_loader = get_data_loader_service()
-        self.profiles = get_sender_profile_service()
 
     def create_workflow(self):
         graph = StateGraph(PipelineState)
@@ -58,11 +56,6 @@ class EmailAnalysisPipeline:
         scored = state["scored_results"]
         manual = [r for r in scored if r.analysis.manual_review_required]
         
-        for email, analysis, score in zip(state["emails"], state["analyses"], scored):
-            self.profiles.update_profile(
-                email.from_address, email.body, analysis.tone, 
-                analysis.classifications, score.risk_score
-            )
             
         summary = {
             "total": len(scored),

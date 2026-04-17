@@ -1,27 +1,51 @@
+import logging
 import pandas as pd
 from pathlib import Path
 from typing import List, Dict, Any
+from rich.progress import Progress, BarColumn, SpinnerColumn, TextColumn, TimeElapsedColumn
 from schemas.email_models import EmailInput, EmailScoringResult, PipelineOutput
-from services.guardrail_service import get_guardrail_service
+
+logger = logging.getLogger(__name__)
 
 class DataLoaderService:
     def __init__(self):
-        self.guardrails = get_guardrail_service()
+        pass
 
     def load_emails_from_excel(self, path: str) -> List[EmailInput]:
         df = pd.read_excel(path)
         df.columns = df.columns.str.lower().str.strip()
-        
+        df = df.fillna("")
+        logger.info("Loading %s email rows from %s", len(df), path)
+
         emails = []
-        for idx, row in df.iterrows():
-            data = row.to_dict()
-            if "email_id" not in data or pd.isna(data["email_id"]):
-                data["email_id"] = f"E_{idx+1}"
-            data = {k: v for k, v in data.items() if pd.notna(v)}
-            
-            email = self.guardrails.validate_email_input(data)
-            if email:
-                emails.append(email)
+        print(f"Loading {len(df)} emails from {path}...")
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TextColumn("{task.completed}/{task.total}"),
+            TimeElapsedColumn(),
+            transient=False,
+        ) as progress:
+            task = progress.add_task("Processing emails", total=len(df))
+            for idx, row in df.iterrows():
+                data = {k.lower().strip(): v for k, v in row.to_dict().items()}
+                if not data.get("email_id"):
+                    data["email_id"] = f"E_{idx+1}"
+                data["subject"] = data.get("subject", "")
+                data["body"] = data.get("body", "")
+                if not data.get("from") and data.get("from_address"):
+                    data["from"] = data["from_address"]
+                if not data.get("to") and data.get("to_address"):
+                    data["to"] = data["to_address"]
+
+                try:
+                    email = EmailInput(**data)
+                    emails.append(email)
+                except Exception as e:
+                    logger.error("Skipping row %s during load: %s", idx, e)
+                finally:
+                    progress.advance(task)
         return emails
 
     def save_results_to_excel(self, output: PipelineOutput, path: str):
@@ -32,7 +56,6 @@ class DataLoaderService:
                 main_data.append({
                     "Rank": r.rank,
                     "Email ID": r.email_id,
-                    "From": r.analysis.email_id, # wait, this was a bug in original code, fixing it:
                     "Classifications": ", ".join(r.analysis.classifications),
                     "Risk Score": round(r.risk_score, 2),
                     "Level": r.criticality_level,
@@ -61,8 +84,6 @@ class DataLoaderService:
                     "Email ID": r.email_id,
                     "Confidence": f.confidence_score,
                     "Criticality": f.criticality_score,
-                    "Tone Weight": f.tone_weight,
-                    "Deviation Weight": f.tone_deviation_weight,
                     "Floor": f.baseline_floor,
                     "Final": round(r.risk_score, 2)
                 })

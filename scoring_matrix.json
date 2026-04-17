@@ -8,6 +8,9 @@
     "phishing": 0.85,
     "scam": 0.8,
     "market_manipulation": 0.7,
-    "quid_pro_quo": 0.75
+    "quid_pro_quo": 0.75,
+    "compliance": 0.3,
+    "financial risk": 0.5,
+    "none": 0.0
 }
     
