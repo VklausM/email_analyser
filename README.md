@@ -20,11 +20,11 @@ OPENAI_API_KEY=your_api_key
 ## Usage
 
 ```Bash
-python main.py --input emails.xlsx --output results.xlsx
+python main.py --file emails.xlsx --output results.xlsx
 ```
 
 Load emails from Excel/CSV and get:
-- Classification into 11 BFSI risk types
+- Classification into 8 BFSI risk types
 - Risk scores (0-100)
 - Manual review flags
 - Evidence and reasoning
@@ -43,11 +43,13 @@ Load emails from Excel/CSV and get:
 
 ## Configuration
 
-Edit \config.py\ to adjust:
+Edit `config.py` to adjust:
 - Model selection (MODEL_NAME)
 - Risk thresholds (RISK_THRESHOLD)
-- Criticality weights (CRITICALITY_WEIGHTS)
 - Tone weights (TONE_WEIGHTS)
+
+Edit `scoring_matrix.json` to adjust:
+- Criticality weights (CRITICALITY_WEIGHTS)
 
 ## Output
 

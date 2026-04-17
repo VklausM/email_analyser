@@ -1,6 +1,7 @@
+import json
 from pydantic_settings import BaseSettings
 from typing import Dict
-
+from pathlib import Path
 
 class Settings(BaseSettings):
     OPENAI_API_KEY: str
@@ -15,19 +16,7 @@ class Settings(BaseSettings):
         "pressuring": 1.4,
     }
 
-    CRITICALITY_WEIGHTS: Dict[str, float] = {
-        "malicious": 0.8,
-        "money_laundering": 1.0,
-        "insider_trading": 0.95,
-        "secrecy_breach": 0.6,
-        "bribery": 0.9,
-        "fraud": 1.0,
-        "phishing": 0.85,
-        "scam": 0.8,
-        "market_manipulation": 0.7,
-        "quid_pro_quo": 0.75,
-        "none": 0.0,
-    }
+    CRITICALITY_WEIGHTS: Dict[str, float] = {}
     
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     EMBEDDING_DIMENSION: int = 1536
@@ -54,10 +43,20 @@ class Settings(BaseSettings):
     }
     
     RISK_SCORE_SCALE: float = 100.0
+    CHROMA_PERSIST_DIR: str = ".chroma_db"
 
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
 
-
 settings = Settings()
+
+def load_weights():
+    matrix_file = Path("scoring_matrix.json")
+    if matrix_file.exists():
+        with open(matrix_file, "r") as f:
+            settings.CRITICALITY_WEIGHTS = json.load(f)
+            if "none" not in settings.CRITICALITY_WEIGHTS:
+                settings.CRITICALITY_WEIGHTS["none"] = 0.0
+
+load_weights()

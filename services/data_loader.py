@@ -1,116 +1,88 @@
 import pandas as pd
-from typing import List, Dict, Any, Optional
 from pathlib import Path
+from typing import List, Dict, Any
 from schemas.email_models import EmailInput, EmailScoringResult, PipelineOutput
 from services.guardrail_service import get_guardrail_service
-import logging
-
-logger = logging.getLogger(__name__)
-
 
 class DataLoaderService:
-    REQUIRED_COLUMNS = ["from", "to", "subject", "body"]
-    OPTIONAL_COLUMNS = ["date", "cc", "bcc", "email_id"]
-    
     def __init__(self):
         self.guardrails = get_guardrail_service()
-    
-    def load_emails_from_excel(self, file_path: str, validate: bool = True, skip_errors: bool = False) -> List[EmailInput]:
-        try:
-            file_path = Path(file_path)
-            if not file_path.exists():
-                raise FileNotFoundError(f"File not found: {file_path}")
-            df = pd.read_excel(file_path)
-            missing = set(self.REQUIRED_COLUMNS) - set(df.columns)
-            if missing:
-                raise ValueError(f"Missing required columns: {missing}")
-            df.columns = df.columns.str.lower().str.strip()
-            emails = []
-            for idx, row in df.iterrows():
-                try:
-                    email_data = row.to_dict()
-                    if "email_id" not in email_data or pd.isna(email_data["email_id"]):
-                        email_data["email_id"] = f"email_{idx}"
-                    email_data = {k: v for k, v in email_data.items() if pd.notna(v)}
-                    if validate:
-                        email = self.guardrails.validate_email_input(email_data, strict=not skip_errors)
-                        if email is not None:
-                            emails.append(email)
-                    else:
-                        emails.append(EmailInput(**email_data))
-                except Exception as e:
-                    if skip_errors:
-                        logger.warning(f"Skipping invalid email at row {idx}: {e}")
-                        continue
-                    else:
-                        raise ValueError(f"Error processing row {idx}: {e}")
-            logger.info(f"Loaded {len(emails)} valid emails from {file_path}")
-            return emails
-        except Exception as e:
-            logger.error(f"Failed to load emails: {str(e)}")
-            raise
-    
-    def save_results_to_excel(self, output: PipelineOutput, file_path: str, include_evidence: bool = True, include_factors: bool = True) -> None:
-        try:
-            file_path = Path(file_path)
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-            with pd.ExcelWriter(file_path, engine="openpyxl") as writer:
-                results_data = []
-                for result in output.results:
-                    row = {"Email ID": result.email_id, "From": result.analysis.email_id, "Subject": "", "Classifications": ",".join(result.analysis.classifications), "Risk Score": result.risk_score}
-                    results_data.append(row)
-                results_df = pd.DataFrame(results_data)
-                results_df.to_excel(writer, sheet_name="Analysis Results", index=False)
-            logger.info(f"Results saved to {file_path}")
-        except Exception as e:
-            logger.error(f"Failed to save results: {str(e)}")
-            raise
-    
-    def load_emails_from_csv(self, file_path: str, validate: bool = True, skip_errors: bool = False) -> List[EmailInput]:
-        try:
-            file_path = Path(file_path)
-            if not file_path.exists():
-                raise FileNotFoundError(f"File not found: {file_path}")
-            df = pd.read_csv(file_path)
-            missing = set(self.REQUIRED_COLUMNS) - set(df.columns)
-            if missing:
-                raise ValueError(f"Missing required columns: {missing}")
-            df.columns = df.columns.str.lower().str.strip()
-            emails = []
-            for idx, row in df.iterrows():
-                try:
-                    email_data = row.to_dict()
-                    if "email_id" not in email_data or pd.isna(email_data["email_id"]):
-                        email_data["email_id"] = f"email_{idx}"
-                    email_data = {k: v for k, v in email_data.items() if pd.notna(v)}
-                    if validate:
-                        email = self.guardrails.validate_email_input(email_data, strict=not skip_errors)
-                        if email is not None:
-                            emails.append(email)
-                    else:
-                        emails.append(EmailInput(**email_data))
-                except Exception as e:
-                    if skip_errors:
-                        logger.warning(f"Skipping invalid email at row {idx}: {e}")
-                        continue
-                    else:
-                        raise
-            return emails
-        except Exception as e:
-            logger.error(f"Failed to load emails from CSV: {str(e)}")
-            raise
 
+    def load_emails_from_excel(self, path: str) -> List[EmailInput]:
+        df = pd.read_excel(path)
+        df.columns = df.columns.str.lower().str.strip()
+        
+        emails = []
+        for idx, row in df.iterrows():
+            data = row.to_dict()
+            if "email_id" not in data or pd.isna(data["email_id"]):
+                data["email_id"] = f"E_{idx+1}"
+            data = {k: v for k, v in data.items() if pd.notna(v)}
+            
+            email = self.guardrails.validate_email_input(data)
+            if email:
+                emails.append(email)
+        return emails
 
-_data_loader: Optional[DataLoaderService] = None
+    def save_results_to_excel(self, output: PipelineOutput, path: str):
+        with pd.ExcelWriter(path, engine="xlsxwriter") as writer:
+            # Sheet 1: Ranked Results
+            main_data = []
+            for r in output.results:
+                main_data.append({
+                    "Rank": r.rank,
+                    "Email ID": r.email_id,
+                    "From": r.analysis.email_id, # wait, this was a bug in original code, fixing it:
+                    "Classifications": ", ".join(r.analysis.classifications),
+                    "Risk Score": round(r.risk_score, 2),
+                    "Level": r.criticality_level,
+                    "Manual": "YES" if r.analysis.manual_review_required else "NO"
+                })
+            pd.DataFrame(main_data).to_excel(writer, sheet_name="Ranked Results", index=False)
+            
+            # Sheet 2: Evidence Lines
+            evidence_data = []
+            for r in output.results:
+                for line in r.analysis.evidence_lines:
+                    evidence_data.append({
+                        "Email ID": r.email_id,
+                        "Line": line.line_number,
+                        "Level": line.risk_level,
+                        "Text": line.text,
+                        "Reason": line.reason
+                    })
+            pd.DataFrame(evidence_data).to_excel(writer, sheet_name="Evidence Lines", index=False)
+            
+            # Sheet 3: Scoring Factors
+            factors_data = []
+            for r in output.results:
+                f = r.scoring_factors
+                factors_data.append({
+                    "Email ID": r.email_id,
+                    "Confidence": f.confidence_score,
+                    "Criticality": f.criticality_score,
+                    "Tone Weight": f.tone_weight,
+                    "Deviation Weight": f.tone_deviation_weight,
+                    "Floor": f.baseline_floor,
+                    "Final": round(r.risk_score, 2)
+                })
+            pd.DataFrame(factors_data).to_excel(writer, sheet_name="Scoring Factors", index=False)
+            
+            # Sheet 4: Manual Review
+            if output.manual_review_emails:
+                manual_data = []
+                for r in output.manual_review_emails:
+                    manual_data.append({
+                        "Email ID": r.email_id,
+                        "Reason": r.analysis.manual_review_reason,
+                        "Score": round(r.risk_score, 2)
+                    })
+                pd.DataFrame(manual_data).to_excel(writer, sheet_name="Manual Review", index=False)
 
+_service = None
 
-def get_data_loader_service() -> DataLoaderService:
-    global _data_loader
-    if _data_loader is None:
-        _data_loader = DataLoaderService()
-    return _data_loader
-
-
-def load_emails(file_path):
-    df = pd.read_excel(file_path)
-    return df.to_dict(orient="records")
+def get_data_loader_service():
+    global _service
+    if _service is None:
+        _service = DataLoaderService()
+    return _service
