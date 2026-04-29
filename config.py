@@ -1,11 +1,18 @@
 import json
 from pathlib import Path
 from pydantic import Field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Dict
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+        extra="ignore"
+    )
+
     AZURE_OPENAI_API_KEY: str
     AZURE_OPENAI_ENDPOINT: str
     AZURE_OPENAI_CHAT_DEPLOYMENT: str
@@ -25,11 +32,6 @@ class Settings(BaseSettings):
     }
 
     SCORING_WEIGHTS: Dict[str, float] = {}
-
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = True
 
 
 settings = Settings()
