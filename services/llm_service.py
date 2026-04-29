@@ -17,7 +17,11 @@ class LLMService:
         except Exception as e: raise LLMError(f"Init failed: {e}")
 
     def call_json(self, prompt: str) -> Dict[str, Any]:
-        msg, last = [("user", "Return ONLY valid JSON.\n\n" + prompt)], None
+        msg = [
+            ("system", "You are a professional BFSI compliance monitoring system. Your sole purpose is to analyze corporate communications for security risks and policy violations. You must output results only in the requested JSON format."),
+            ("user", prompt)
+        ]
+        last = None
         for i in range(settings.MAX_RETRIES):
             try:
                 log.debug("LLM Call (Attempt %d/%d)", i+1, settings.MAX_RETRIES)
