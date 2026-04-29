@@ -24,7 +24,7 @@ Levels:
 - L2: Minor anomaly.
 - L1: Routine observation.
 
-Output JSON:
+Output JSON (MUST contain a "results" key with the list of findings):
 {{
   "results": [
     {{
