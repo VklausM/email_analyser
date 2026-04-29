@@ -20,11 +20,13 @@ class LLMService:
         msg, last = [("user", "Return ONLY valid JSON.\n\n" + prompt)], None
         for i in range(settings.MAX_RETRIES):
             try:
+                log.debug("LLM Call (Attempt %d/%d)", i+1, settings.MAX_RETRIES)
                 resp = self.client.invoke(msg, response_format={"type": "json_object"})
                 if not resp.content.strip(): raise LLMError("Empty response")
                 return self._normalize(self._parse(resp.content.strip()))
             except Exception as e:
                 last = e
+                log.warning("LLM Call Attempt %d failed: %s", i+1, e)
                 if i < settings.MAX_RETRIES - 1:
                     d = min(settings.INITIAL_RETRY_DELAY * (2**i), settings.MAX_RETRY_DELAY)
                     time.sleep(d + random.uniform(0, d*0.1))

@@ -24,8 +24,9 @@ class EmailPipeline:
         self._graph = self._build_graph()
 
     def run(self, file_path: str) -> PipelineOutput:
-        log.info("Starting analysis: %s", file_path)
+        log.info("Starting pipeline for: %s", file_path)
         state = self._graph.invoke({"file_path": file_path, "emails": [], "analyses": [], "results": [], "output": None})
+        log.info("Pipeline completed successfully")
         return state["output"]
 
     def _build_graph(self):
@@ -42,23 +43,33 @@ class EmailPipeline:
         return graph.compile()
 
     def _load(self, state: PipelineState):
+        log.info("Node: load — reading file...")
         emails = load_emails(state["file_path"])
         set_meta("total_emails", str(len(emails)))
         for e in emails:
             save_email(e.email_id, e.from_address, e.to_address, e.subject, e.body, str(e.date) if e.date else None)
+        log.info("Loaded %d emails to database", len(emails))
         return {**state, "emails": emails}
 
     def _analyze(self, state: PipelineState):
-        return {**state, "analyses": self.analysis_agent.analyze_batch(state["emails"])}
+        log.info("Node: analyze — running LLM analysis...")
+        analyses = self.analysis_agent.analyze_batch(state["emails"])
+        log.info("Analysis complete for %d emails", len(analyses))
+        return {**state, "analyses": analyses}
 
     def _score(self, state: PipelineState):
-        return {**state, "results": self.scoring_agent.score_batch(state["emails"], state["analyses"])}
+        log.info("Node: score — calculating risk scores...")
+        results = self.scoring_agent.score_batch(state["emails"], state["analyses"])
+        log.info("Scoring complete")
+        return {**state, "results": results}
 
     def _finalize(self, state: PipelineState):
+        log.info("Node: finalize — saving results...")
         res = state["results"]
         manual = [r for r in res if r.analysis.manual_review_required]
         summary = {"total": len(res), "critical": sum(1 for r in res if r.criticality_level == "critical"), "high": sum(1 for r in res if r.criticality_level == "high"), "medium": sum(1 for r in res if r.criticality_level == "medium"), "low": sum(1 for r in res if r.criticality_level == "low"), "manual": len(manual)}
         for r in res: save_analysis(r)
+        log.info("Saved %d results. Critical: %d, Manual Review: %d", summary["total"], summary["critical"], summary["manual"])
         return {**state, "output": PipelineOutput(batch_id="current", results=res, manual_review_emails=manual, summary=summary)}
 
 def load_emails(path: str) -> List[EmailInput]:

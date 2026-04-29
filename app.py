@@ -32,13 +32,19 @@ def tab_upload():
             tmp.write(up.read())
             path = tmp.name
         try:
-            with st.status("Analyzing...") as s:
+            with st.status("Initializing analysis pipeline...", expanded=True) as s:
                 from db import set_meta
                 set_meta("filename", up.name)
-                EmailPipeline().run(path)
-                s.update(label="Complete!", state="complete")
+                s.write("📂 Loading and preprocessing emails...")
+                pipeline = EmailPipeline()
+                s.write("🤖 Running LLM Analysis and Risk Scoring...")
+                pipeline.run(path)
+                s.update(label="Analysis complete!", state="complete")
             st.rerun()
-        except Exception as e: st.error(str(e))
+        except Exception as e:
+            st.error(f"Analysis failed: {str(e)}")
+            import traceback
+            st.code(traceback.format_exc())
 
 def tab_dashboard():
     st.markdown("### Dashboard")
