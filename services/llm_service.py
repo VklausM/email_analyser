@@ -13,7 +13,7 @@ class LLMError(Exception): pass
 
 class LLMService:
     def __init__(self):
-        try: self.client = AzureChatOpenAI(azure_endpoint=settings.AZURE_OPENAI_ENDPOINT, api_key=settings.AZURE_OPENAI_API_KEY, azure_deployment=settings.AZURE_OPENAI_CHAT_DEPLOYMENT, api_version=settings.AZURE_OPENAI_API_VERSION, temperature=0.2, timeout=30, max_retries=0)
+        try: self.client = AzureChatOpenAI(azure_endpoint=settings.AZURE_OPENAI_ENDPOINT, api_key=settings.AZURE_OPENAI_API_KEY, azure_deployment=settings.AZURE_OPENAI_CHAT_DEPLOYMENT, api_version=settings.AZURE_OPENAI_API_VERSION, temperature=0.1, timeout=60, max_retries=0)
         except Exception as e: raise LLMError(f"Init failed: {e}")
 
     def call_json(self, prompt: str) -> Dict[str, Any]:

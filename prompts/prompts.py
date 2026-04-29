@@ -1,33 +1,39 @@
-ANALYSIS_PROMPT = """Analyze these emails for BFSI compliance and security risks.
+import json
 
-Focus Areas:
-- Phishing: Attempts to steal credentials or sensitive bank info.
-- Social Engineering: Urgency, authority, or fear used to bypass procedures.
-- Data Protection: Unauthorized sharing of customer PII or internal secrets.
-- Fraud: Unusual payment requests or account changes.
+try:
+    with open("scoring_matrix.json") as f:
+        SCORING_MATRIX = json.load(f)
+    CATEGORIES = ", ".join(SCORING_MATRIX.keys())
+except:
+    CATEGORIES = "malicious, money_laundering, insider_trading, secrecy_breach, bribery, fraud, phishing, scam, market_manipulation, quid_pro_quo, compliance, financial risk, none"
 
-Rules:
-1. Only flag 'manual_review_required' if the email is genuinely ambiguous or contains a high-stakes request that MUST be seen by a human (e.g., large transfer request). Do not over-flag.
-2. If it's a routine business email, classify as 'normal_email' with high confidence.
-3. Use specific categories: phishing, social_engineering, data_leakage, fraudulent_request, policy_violation, normal_email.
+ANALYSIS_PROMPT = f"""Analyze these emails for BFSI compliance risks.
 
-Output JSON:
-{
+Categories (Use ONLY these):
+- {CATEGORIES}
+
+Scoring Guidelines:
+- CRITICAL: Direct evidence of crime or severe data breach.
+- HIGH: Strong indicators of the selected category.
+- MEDIUM: Suspicious behavior needing verification.
+- LOW: Minor anomaly or context-dependent risk.
+
+Output Example JSON:
+{{
   "results": [
-    {
+    {{
       "email_id": "...",
-      "classifications": ["..."],
-      "tags": ["..."],
-      "confidence": 0.85,
+      "classifications": ["fraud", "phishing"], 
+      "tags": ["urgent", "PII", "financial"],
+      "confidence": 0.95,
       "reasoning": "...",
-      "evidence_lines": [{"line_number": 1, "text": "...", "risk_level": "low|medium|high|critical", "reason": "..."}],
-      "manual_review_required": false,
-      "manual_review_reason": "..."
-    }
+      "evidence_lines": [{{ "line_number": 1, "text": "...", "risk_level": "low|medium|high|critical", "reason": "..." }}],
+      "manual_review_required": false
+    }}
   ]
-}
+}}
 
 Emails:
 """
 
-FALLBACK_PROMPT = "Extract security risks from these emails. Use JSON list 'results'."
+FALLBACK_PROMPT = "Categorize BFSI risks using JSON 'results'."
