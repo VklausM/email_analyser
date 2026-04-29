@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import List, Optional, TypedDict
 from langgraph.graph import StateGraph, START, END
 from schemas.models import EmailInput, EmailAnalysis, EmailScoringResult, PipelineOutput
-from agents.compliance_agent import ComplianceAgent
+from agents.compliance_inspector import ComplianceInspector
 from agents.scoring_agent import ScoringAgent
 from db import save_email, save_analysis, set_meta
 from utils.logger import get_logger
@@ -19,49 +19,50 @@ class PipelineState(TypedDict):
 
 class EmailPipeline:
     def __init__(self):
-        self.triage_agent = ComplianceAgent()
-        self.scoring_agent = ScoringAgent()
+        self.inspector = ComplianceInspector()
+        self.specialist = ScoringAgent()
         self._graph = self._build_graph()
 
     def run(self, file_path: str) -> PipelineOutput:
-        log.info("Starting Two-Agent Pipeline: %s", file_path)
+        log.info("Starting Multi-Agent Compliance Audit: %s", file_path)
         state = self._graph.invoke({"file_path": file_path, "emails": [], "analyses": [], "results": [], "output": None})
         return state["output"]
 
     def _build_graph(self):
         graph = StateGraph(PipelineState)
-        graph.add_node("load", self._load)
-        graph.add_node("triage", self._triage)
-        graph.add_node("score", self._score)
-        graph.add_node("finalize", self._finalize)
+        graph.add_node("load", self._load_data)
+        graph.add_node("inspect", self._inspect_compliance)
+        graph.add_node("assess", self._assess_risk)
+        graph.add_node("finalize", self._finalize_audit)
+        
         graph.add_edge(START, "load")
-        graph.add_edge("load", "triage")
-        graph.add_edge("triage", "score")
-        graph.add_edge("score", "finalize")
+        graph.add_edge("load", "inspect")
+        graph.add_edge("inspect", "assess")
+        graph.add_edge("assess", "finalize")
         graph.add_edge("finalize", END)
         return graph.compile()
 
-    def _load(self, state: PipelineState):
+    def _load_data(self, state: PipelineState):
         emails = load_emails(state["file_path"])
         set_meta("total_emails", str(len(emails)))
         for e in emails:
             save_email(e.email_id, e.from_address, e.to_address, e.subject, e.body, str(e.date) if e.date else None)
         return {**state, "emails": emails}
 
-    def _triage(self, state: PipelineState):
-        log.info("Agent 1: Triaging and filtering emails...")
-        return {**state, "analyses": self.triage_agent.filter_and_analyze(state["emails"])}
+    def _inspect_compliance(self, state: PipelineState):
+        log.info("Agent 1: Performing initial compliance inspection...")
+        return {**state, "analyses": self.inspector.inspect_emails(state["emails"])}
 
-    def _score(self, state: PipelineState):
-        log.info("Agent 2: Scoring and risk assessment...")
-        return {**state, "results": self.scoring_agent.score_batch(state["emails"], state["analyses"])}
+    def _assess_risk(self, state: PipelineState):
+        log.info("Agent 2: Specialist conducting risk assessment...")
+        return {**state, "results": self.specialist.score_batch(state["emails"], state["analyses"])}
 
-    def _finalize(self, state: PipelineState):
+    def _finalize_audit(self, state: PipelineState):
         res = state["results"]
         manual = [r for r in res if r.analysis.manual_review_required]
         summary = {"total": len(res), "critical": sum(1 for r in res if r.criticality_level == "critical"), "high": sum(1 for r in res if r.criticality_level == "high"), "medium": sum(1 for r in res if r.criticality_level == "medium"), "low": sum(1 for r in res if r.criticality_level == "low"), "manual": len(manual)}
         for r in res: save_analysis(r)
-        log.info("Pipeline Finished. Manual Reviews: %d", summary["manual"])
+        log.info("Audit Finished. Manual Reviews Flagged: %d", summary["manual"])
         return {**state, "output": PipelineOutput(batch_id="current", results=res, manual_review_emails=manual, summary=summary)}
 
 def load_emails(path: str) -> List[EmailInput]:
