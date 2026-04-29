@@ -50,8 +50,9 @@ class LLMService:
             if "results" in data and isinstance(data["results"], list): return data
             for k in ("emails", "analyses", "items"):
                 if k in data and isinstance(data[k], list): return {"results": data[k]}
+            return data # Return flat dict for single-item results (like scoring)
         if isinstance(data, list): return {"results": data}
-        raise LLMError("Missing results list")
+        return {"results": []}
 
 _svc = None
 def get_llm_service():
