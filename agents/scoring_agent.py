@@ -40,6 +40,9 @@ class ScoringAgent:
         final_score = round(max(0, min(100, score)), 2)
         level = self._get_level(final_score)
         
+        # Reduce manual work: suppress flags for very low risk emails
+        if final_score < 15: a.manual_review_required = False
+        
         return EmailScoringResult(
             email_id=email.email_id,
             analysis=a,

@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     AZURE_OPENAI_CHAT_DEPLOYMENT: str
     AZURE_OPENAI_API_VERSION: str = "2024-02-15-preview"
     CONFIDENCE_THRESHOLD: float = 0.6
-    MAX_BATCH_SIZE: int = 10
+    MAX_BATCH_SIZE: int = 5
     MAX_RETRIES: int = 3
     INITIAL_RETRY_DELAY: float = 1.0
     MAX_RETRY_DELAY: float = 60.0
