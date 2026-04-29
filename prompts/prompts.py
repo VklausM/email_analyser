@@ -1,9 +1,15 @@
-ANALYSIS_PROMPT = """Analyze these emails for BFSI compliance risks.
+ANALYSIS_PROMPT = """Analyze these emails for BFSI compliance and security risks.
+
+Focus Areas:
+- Phishing: Attempts to steal credentials or sensitive bank info.
+- Social Engineering: Urgency, authority, or fear used to bypass procedures.
+- Data Protection: Unauthorized sharing of customer PII or internal secrets.
+- Fraud: Unusual payment requests or account changes.
+
 Rules:
-1. Classify: phishing, scam, data_leakage, fraudulent_request, unauthorized_disclosure, policy_violation, suspicious_attachment, suspicious_link, urgency_tactic, pressure_tactic, or normal_email.
-2. Tag: urgent, financial_amount, sensitive_data, external_sender, internal_policy.
-3. Extract specific evidence lines with line numbers.
-4. If risk is low, use normal_email.
+1. Only flag 'manual_review_required' if the email is genuinely ambiguous or contains a high-stakes request that MUST be seen by a human (e.g., large transfer request). Do not over-flag.
+2. If it's a routine business email, classify as 'normal_email' with high confidence.
+3. Use specific categories: phishing, social_engineering, data_leakage, fraudulent_request, policy_violation, normal_email.
 
 Output JSON:
 {
@@ -12,10 +18,10 @@ Output JSON:
       "email_id": "...",
       "classifications": ["..."],
       "tags": ["..."],
-      "confidence": 0.0-1.0,
+      "confidence": 0.85,
       "reasoning": "...",
-      "evidence_lines": [{"line_number": 1, "text": "...", "risk_level": "low|medium|high|critical", "reason": "...", "confidence": 0.5}],
-      "manual_review_required": true|false,
+      "evidence_lines": [{"line_number": 1, "text": "...", "risk_level": "low|medium|high|critical", "reason": "..."}],
+      "manual_review_required": false,
       "manual_review_reason": "..."
     }
   ]
@@ -24,4 +30,4 @@ Output JSON:
 Emails:
 """
 
-FALLBACK_PROMPT = """Extract risk classifications from these emails. Return JSON list 'results'."""
+FALLBACK_PROMPT = "Extract security risks from these emails. Use JSON list 'results'."
