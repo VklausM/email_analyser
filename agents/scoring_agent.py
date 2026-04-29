@@ -1,46 +1,50 @@
-from typing import List
+from typing import List, Dict, Any
 from schemas.models import EmailInput, EmailAnalysis, EmailScoringResult, ScoringFactors
 from config import settings
 from db import get_sender_modifier
+from services.llm_service import get_llm_service
+from prompts.prompts import SCORING_PROMPT
 from utils.logger import get_logger
 
-log = get_logger("scoring_agent")
+log = get_logger("scoring_specialist")
 
-RISK_VALUES = {"critical": 35, "high": 20, "medium": 10, "low": 2}
 LABELS = {"critical": "Critical Risk", "high": "High Risk", "medium": "Medium Risk", "low": "Normal"}
 
 class ScoringAgent:
+    def __init__(self):
+        self.llm = get_llm_service()
+
     def score_batch(self, emails: List[EmailInput], analyses: List[EmailAnalysis]) -> List[EmailScoringResult]:
         if not emails: return []
         results, email_map = [], {e.email_id: e for e in emails}
         for a in analyses:
             e = email_map.get(a.email_id)
             if e:
-                try: results.append(self._calculate(e, a))
+                try: results.append(self._calculate_risk(e, a))
                 except: pass
         results.sort(key=lambda r: r.risk_score, reverse=True)
         for i, r in enumerate(results, 1): r.rank = i
         return results
 
-    def _calculate(self, email: EmailInput, a: EmailAnalysis) -> EmailScoringResult:
-        weights = settings.SCORING_WEIGHTS
-        base_risk = max([weights.get(c, 0.1) for c in a.classifications]) if a.classifications != ["normal_email"] else 0.0
-        
-        evidence_score = sum(RISK_VALUES.get(line.risk_level, 2) for line in a.evidence_lines)
-        evidence_score = min(evidence_score, 45)
+    def _calculate_risk(self, email: EmailInput, a: EmailAnalysis) -> EmailScoringResult:
+        # Step 1: Gen AI Risk Assessment
+        try:
+            prompt = SCORING_PROMPT.format(
+                classifications=", ".join(a.classifications),
+                reasoning=a.reasoning,
+                evidence_count=len(a.evidence_lines),
+                confidence=a.confidence
+            )
+            res = self.llm.call_json(prompt)
+            gen_score = float(res.get("risk_score", 0))
+        except:
+            gen_score = self._formula_fallback(a)
 
+        # Step 2: Apply human-defined weights and modifiers
         sender_mod = get_sender_modifier(email.from_address)
+        final_score = round(max(0, min(100, gen_score * sender_mod)), 2)
         
-        # Combined score calculation
-        score = (base_risk * 50) + (evidence_score * 1.2)
-        score *= (0.7 + (a.confidence * 0.3))
-        score *= sender_mod
-        
-        # Final normalization to ensure it fits 0-100 and feels balanced
-        final_score = round(max(0, min(100, score)), 2)
-        level = self._get_level(final_score)
-        
-        # Reduce manual work: suppress flags for low-medium risk emails
+        level = self._get_risk_level(final_score)
         if final_score < 30: a.manual_review_required = False
         
         return EmailScoringResult(
@@ -51,13 +55,19 @@ class ScoringAgent:
             display_label=LABELS.get(level, "Low Risk"),
             scoring_factors=ScoringFactors(
                 confidence_score=a.confidence,
-                criticality_score=base_risk,
-                evidence_contribution=evidence_score,
+                criticality_score=gen_score / 100,
+                evidence_contribution=float(len(a.evidence_lines)),
                 sender_modifier=sender_mod
             )
         )
 
-    def _get_level(self, score: float):
+    def _formula_fallback(self, a: EmailAnalysis) -> float:
+        weights = settings.SCORING_WEIGHTS
+        base = max([weights.get(c, 0.1) for c in a.classifications]) if a.classifications != ["none"] else 0.0
+        evidence = min(len(a.evidence_lines) * 10, 40)
+        return (base * 60) + evidence
+
+    def _get_risk_level(self, score: float):
         t = settings.CRITICALITY_THRESHOLDS
         if score >= t.get("critical", 75): return "critical"
         if score >= t.get("high", 50): return "high"

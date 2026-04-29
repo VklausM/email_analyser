@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     INITIAL_RETRY_DELAY: float = 1.0
     MAX_RETRY_DELAY: float = 60.0
     CRITICALITY_THRESHOLDS: Dict[str, float] = {"critical": 75.0, "high": 50.0, "medium": 25.0, "low": 0.0}
+    EVIDENCE_RISK_VALUES: Dict[str, float] = {"critical": 35.0, "high": 20.0, "medium": 10.0, "low": 2.0}
     SCORING_WEIGHTS: Dict[str, float] = {}
 
 settings = Settings()
