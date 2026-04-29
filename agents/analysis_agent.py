@@ -51,32 +51,11 @@ class AnalysisAgent:
         cls = [str(c).strip().lower() for c in res.get("classifications", ["normal_email"]) if c] or ["normal_email"]
         conf = max(0.0, min(1.0, float(res.get("confidence", 0.5))))
         ev = self._parse_evidence(res.get("evidence_lines", []))
-        
-        # Robustness: Check for missing evidence in non-normal emails
-        if "normal_email" not in cls and not ev:
-            conf = min(conf, settings.CONFIDENCE_THRESHOLD - 0.1)
-        
-        rev = bool(res.get("manual_review_required", False))
-        reason = res.get("manual_review_reason")
-        
-        # BFSI Compliance: Force review for critical risk categories
-        critical_categories = {"phishing", "financial_fraud", "data_leakage", "policy_violation"}
-        if any(c in critical_categories for c in cls):
-            rev, reason = True, reason or f"Critical BFSI risk detected: {', '.join(cls)}"
-            
-        if conf < settings.CONFIDENCE_THRESHOLD and "normal_email" not in cls:
+        if cls != ["normal_email"] and not ev: conf = min(conf, settings.CONFIDENCE_THRESHOLD - 0.05)
+        rev, reason = bool(res.get("manual_review_required", False)), res.get("manual_review_reason")
+        if conf < settings.CONFIDENCE_THRESHOLD and cls != ["normal_email"]:
             rev, reason = True, reason or f"Low confidence: {conf:.2f}"
-            
-        return EmailAnalysis(
-            email_id=email.email_id,
-            classifications=cls,
-            tags=[t.strip().lower() for t in res.get("tags", []) if isinstance(t, str)],
-            confidence=conf,
-            evidence_lines=ev,
-            reasoning=str(res.get("reasoning", ""))[:2000],
-            manual_review_required=rev,
-            manual_review_reason=reason
-        )
+        return EmailAnalysis(email_id=email.email_id, classifications=cls, tags=[t.strip().lower() for t in res.get("tags", []) if isinstance(t, str)], confidence=conf, evidence_lines=ev, reasoning=str(res.get("reasoning", ""))[:2000], manual_review_required=rev, manual_review_reason=reason)
 
     def _parse_evidence(self, raw: Any) -> List[EvidenceLine]:
         if not isinstance(raw, list): return []

@@ -21,30 +21,43 @@ def sidebar():
         st.markdown("---")
         fn = get_meta("filename")
         if fn: st.success(f"Current: **{fn}**")
+        else: st.info("No file uploaded yet.")
         st.markdown("---")
 
 def tab_upload():
     st.markdown("### Upload & Analyze")
-    up = st.file_uploader("Choose file", type=["xlsx", "xls", "csv"])
-    if up and st.button("▶ Run Analysis", type="primary"):
-        clear_data()
-        with tempfile.NamedTemporaryFile(delete=False, suffix=Path(up.name).suffix) as tmp:
-            tmp.write(up.read())
-            path = tmp.name
-        try:
-            with st.status("Initializing analysis pipeline...", expanded=True) as s:
-                from db import set_meta
-                set_meta("filename", up.name)
-                s.write("📂 Loading and preprocessing emails...")
-                pipeline = EmailPipeline()
-                s.write("🤖 Running LLM Analysis and Risk Scoring...")
-                pipeline.run(path)
-                s.update(label="Analysis complete!", state="complete")
+    
+    if "uploader_key" not in st.session_state: st.session_state.uploader_key = 0
+    if "analysis_done" not in st.session_state: st.session_state.analysis_done = False
+    
+    up = st.file_uploader("Choose file", type=["xlsx", "xls", "csv"], key=f"up_{st.session_state.uploader_key}")
+    
+    if up:
+        st.session_state.analysis_done = False
+        if st.button("▶ Run Analysis", type="primary", use_container_width=True):
+            clear_data()
+            with tempfile.NamedTemporaryFile(delete=False, suffix=Path(up.name).suffix) as tmp:
+                tmp.write(up.read())
+                path = tmp.name
+            try:
+                with st.status("Initializing analysis pipeline...", expanded=True) as s:
+                    from db import set_meta
+                    set_meta("filename", up.name)
+                    s.write("📂 Loading and preprocessing emails...")
+                    pipeline = EmailPipeline()
+                    s.write("🤖 Running LLM Analysis and Risk Scoring...")
+                    pipeline.run(path)
+                    s.update(label="Analysis complete!", state="complete")
+                st.session_state.analysis_done = True
+                st.session_state.uploader_key += 1
+                st.rerun()
+            except Exception as e:
+                st.error(f"Analysis failed: {str(e)}")
+    
+    elif st.session_state.analysis_done:
+        if st.button("📊 View Results in Dashboard", type="primary", use_container_width=True):
+            st.session_state.active_tab = "📊 Dash"
             st.rerun()
-        except Exception as e:
-            st.error(f"Analysis failed: {str(e)}")
-            import traceback
-            st.code(traceback.format_exc())
 
 def tab_dashboard():
     st.markdown("### Dashboard")
@@ -125,11 +138,49 @@ def tab_config():
 
 def main():
     sidebar()
-    t1, t2, t3, t4, t5 = st.tabs(["📤 Upload", "📊 Dash", "📋 Ranked", "🔎 Review", "⚙️ Config"])
-    with t1: tab_upload()
-    with t2: tab_dashboard()
-    with t3: tab_ranked()
-    with t4: tab_manual_review()
-    with t5: tab_config()
+    
+    tabs = ["📤 Upload", "📊 Dash", "📋 Ranked", "🔎 Review", "⚙️ Config"]
+    if "active_tab" not in st.session_state: st.session_state.active_tab = tabs[0]
+    
+    # Custom CSS for radio-tabs
+    st.markdown("""
+    <style>
+        div[data-testid="stHorizontalBlock"] div[data-testid="stVerticalBlock"] > div:has(div.stRadio) {
+            background: #1a1d2e;
+            padding: 5px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        .stRadio [data-testid="stWidgetLabel"] { display: none; }
+        .stRadio div[role="radiogroup"] {
+            flex-direction: row !important;
+            gap: 10px;
+            justify-content: center;
+        }
+        .stRadio div[role="radiogroup"] label {
+            background: transparent;
+            border: none;
+            padding: 8px 20px !important;
+            border-radius: 8px !important;
+            color: #8b92b3 !important;
+            transition: all 0.2s;
+        }
+        .stRadio div[role="radiogroup"] label[data-selected="true"] {
+            background: #4f6ef7 !important;
+            color: white !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    sel = st.radio("Nav", tabs, index=tabs.index(st.session_state.active_tab), horizontal=True, label_visibility="collapsed")
+    st.session_state.active_tab = sel
+    
+    st.markdown("---")
+    
+    if sel == "📤 Upload": tab_upload()
+    elif sel == "📊 Dash": tab_dashboard()
+    elif sel == "📋 Ranked": tab_ranked()
+    elif sel == "🔎 Review": tab_manual_review()
+    elif sel == "⚙️ Config": tab_config()
 
 if __name__ == "__main__": main()

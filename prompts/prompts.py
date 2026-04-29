@@ -1,23 +1,27 @@
-ANALYSIS_PROMPT = """Analyze the following emails for BFSI (Banking, Financial Services, and Insurance) compliance and security risks.
-Your goal is to detect threats including fraud, data leakage, social engineering, and regulatory non-compliance.
+ANALYSIS_PROMPT = """Analyze these emails for BFSI compliance risks.
+Rules:
+1. Classify: phishing, scam, data_leakage, fraudulent_request, unauthorized_disclosure, policy_violation, suspicious_attachment, suspicious_link, urgency_tactic, pressure_tactic, or normal_email.
+2. Tag: urgent, financial_amount, sensitive_data, external_sender, internal_policy.
+3. Extract specific evidence lines with line numbers.
+4. If risk is low, use normal_email.
 
-RISK CATEGORIES:
-1.  Phishing/Scam: Attempts to steal credentials or sensitive info.
-2.  Financial Fraud: Unauthorized payment requests, bank account changes, or fraudulent invoices.
-3.  Data Leakage (DLP): Sharing PII (Personally Identifiable Information), SPII, account numbers, or internal credentials.
-4.  Social Engineering: Urgency, authority, or fear tactics used to manipulate employees.
-5.  Policy Violation: Breach of internal BFSI protocols or regulatory requirements (e.g., SEBI, RBI, GDPR, PCI-DSS).
+Output JSON:
+{
+  "results": [
+    {
+      "email_id": "...",
+      "classifications": ["..."],
+      "tags": ["..."],
+      "confidence": 0.0-1.0,
+      "reasoning": "...",
+      "evidence_lines": [{"line_number": 1, "text": "...", "risk_level": "low|medium|high|critical", "reason": "...", "confidence": 0.5}],
+      "manual_review_required": true|false,
+      "manual_review_reason": "..."
+    }
+  ]
+}
 
-OUTPUT REQUIREMENTS:
-- Classify with at least one: phishing, financial_fraud, data_leakage, social_engineering, policy_violation, or normal_email.
-- Add tags: urgent, pii_detected, payment_request, external_sender, internal_sensitive.
-- Extract evidence lines with line numbers and a clear reason for the risk level.
-- Confidence must be 0.0-1.0.
-- manual_review_required: true if there is any ambiguity or high-risk detection.
-
-Return ONLY a JSON object with a "results" key containing a list of objects.
-
-Emails to analyze:
+Emails:
 """
 
-FALLBACK_PROMPT = """Analyze these emails for BFSI risks (Fraud, Phishing, DLP). Return JSON list 'results'."""
+FALLBACK_PROMPT = """Extract risk classifications from these emails. Return JSON list 'results'."""
