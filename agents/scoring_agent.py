@@ -36,7 +36,7 @@ class ScoringAgent:
                 confidence=a.confidence
             )
             res = self.llm.call_json(prompt)
-            gen_score = float(res.get("risk_score", 0))
+            gen_score = float(res.get("score", 0))
         except:
             gen_score = self._formula_fallback(a)
 

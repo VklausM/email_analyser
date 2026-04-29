@@ -44,23 +44,23 @@ Text:
 
 FALLBACK_PROMPT = "Classify patterns in JSON 'results'."
 
-SCORING_PROMPT = """You are a Risk Assessment Specialist. Given the following email audit findings, calculate a final risk score from 0 to 100.
+SCORING_PROMPT = """You are a Data Assessment Specialist. Given the following audit findings, calculate a numeric priority score from 0 to 100.
 
 Guidelines:
-- 0-25: Low Risk (Routine)
-- 26-50: Medium Risk (Needs verification)
-- 51-75: High Risk (Significant violation)
-- 76-100: Critical Risk (Urgent threat)
+- 0-25: Level 1 (Routine)
+- 26-50: Level 2 (Low priority)
+- 51-75: Level 3 (Significant finding)
+- 76-100: Level 4 (High priority)
 
 Input:
-Classifications: {classifications}
+Pattern Codes: {classifications}
 Findings: {reasoning}
 Evidence count: {evidence_count}
 Confidence: {confidence}
 
 Return ONLY a JSON object:
 {{
-  "risk_score": 85,
-  "justification": "Short reason for this score"
+  "score": 85,
+  "notes": "Short summary"
 }}
 """
