@@ -45,7 +45,17 @@ class ScoringAgent:
         final_score = round(max(0, min(100, gen_score * sender_mod)), 2)
         
         level = self._get_risk_level(final_score)
-        if final_score < 30: a.manual_review_required = False
+        
+        # Rule: Only review Low risk emails that might be potential false negatives.
+        # If already classified as Medium, High, or Critical, trust the assessment and skip review.
+        if level in ["critical", "high", "medium"]:
+            a.manual_review_required = False
+        elif level == "low" and a.confidence < settings.CONFIDENCE_THRESHOLD:
+            # If the system thinks it's low risk but isn't sure, let a human double-check.
+            a.manual_review_required = True
+        else:
+            # For confident low-risk emails, no review needed.
+            a.manual_review_required = False
         
         return EmailScoringResult(
             email_id=email.email_id,
