@@ -61,6 +61,10 @@ class EmailPipeline:
     def _load(self, state: PipelineState) -> PipelineState:
         emails = load_emails(state["file_path"])
         batch_id = state["batch_id"]
+        filename = Path(state["file_path"]).name
+
+        # Create batch record first to satisfy foreign key constraints
+        save_batch(batch_id, filename, {"total": len(emails)})
 
         for e in emails:
             save_email(
