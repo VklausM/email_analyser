@@ -5,26 +5,26 @@ try:
         SCORING_MATRIX = json.load(f)
     CATEGORIES = ", ".join(SCORING_MATRIX.keys())
 except:
-    CATEGORIES = "malicious, money_laundering, insider_trading, secrecy_breach, bribery, fraud, phishing, scam, market_manipulation, quid_pro_quo, compliance, financial risk, none"
+    CATEGORIES = "phishing, fraud, data_leakage, policy_violation, normal"
 
-ANALYSIS_PROMPT = f"""Analyze these emails for BFSI compliance risks.
+ANALYSIS_PROMPT = f"""As a Compliance Auditor, detect risks in these emails.
 
-Categories (Use ONLY these):
+Detection Categories:
 - {CATEGORIES}
 
-Scoring Guidelines:
-- CRITICAL: Direct evidence of crime or severe data breach.
-- HIGH: Strong indicators of the selected category.
-- MEDIUM: Suspicious behavior needing verification.
-- LOW: Minor anomaly or context-dependent risk.
+Severity Scale:
+- CRITICAL: Immediate security threat or criminal activity.
+- HIGH: Significant policy breach.
+- MEDIUM: Suspicious activity.
+- LOW: Minor anomaly.
 
-Output Example JSON:
+JSON Output Template:
 {{
   "results": [
     {{
       "email_id": "...",
-      "classifications": ["fraud", "phishing"], 
-      "tags": ["urgent", "PII", "financial"],
+      "classifications": ["fraud"], 
+      "tags": ["urgent"],
       "confidence": 0.95,
       "reasoning": "...",
       "evidence_lines": [{{ "line_number": 1, "text": "...", "risk_level": "low|medium|high|critical", "reason": "..." }}],
@@ -33,7 +33,7 @@ Output Example JSON:
   ]
 }}
 
-Emails:
+Emails to Audit:
 """
 
-FALLBACK_PROMPT = "Categorize BFSI risks using JSON 'results'."
+FALLBACK_PROMPT = "Audit these communications for security risks and return JSON 'results'."
