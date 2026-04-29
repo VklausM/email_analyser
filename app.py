@@ -30,7 +30,7 @@ def tab_upload():
     if "uploader_key" not in st.session_state: st.session_state.uploader_key = 0
     if "analysis_done" not in st.session_state: st.session_state.analysis_done = False
     
-    up = st.file_uploader("Choose file", type=["xlsx", "xls", "csv"], key=f"up_{st.session_state.uploader_key}")
+    up = st.file_uploader("Choose file", type=["xlsx", "xls", "csv"], max_upload_size=20, key=f"up_{st.session_state.uploader_key}")
     
     if up:
         st.session_state.analysis_done = False
@@ -102,6 +102,8 @@ def tab_manual_review():
                 st.markdown(f"{badge(r['criticality_level'])} **{r['subject']}**", unsafe_allow_html=True)
                 st.caption(f"From: {r['from_addr']} | Score: {r['risk_score']}")
                 st.markdown(f"> {r['reasoning']}")
+                with st.expander("Show Full Email Text"):
+                    st.text_area("Email Content", value=r["body"] or "", height=250, disabled=True, label_visibility="collapsed", key=f"rev_body_{r['email_id']}")
             with c2:
                 note = st.text_input("Note", key=f"n_{r['email_id']}", placeholder="Add note...", label_visibility="collapsed")
                 b1, b2 = st.columns(2)
