@@ -43,7 +43,6 @@ class EmailPipeline:
 
     def _load(self, state: PipelineState):
         emails = load_emails(state["file_path"])
-        set_meta("filename", Path(state["file_path"]).name)
         set_meta("total_emails", str(len(emails)))
         for e in emails:
             save_email(e.email_id, e.from_address, e.to_address, e.subject, e.body, str(e.date) if e.date else None)

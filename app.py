@@ -1,6 +1,6 @@
 import json, io, tempfile, streamlit as st, pandas as pd
 from pathlib import Path
-from db import init_db, clear_data, get_results, get_manual_review_emails, record_feedback, get_all_config, set_config, get_meta
+from db import init_db, clear_data, get_results, get_manual_review_emails, record_feedback, set_config, get_meta
 from pipeline.graph import EmailPipeline
 from config import settings
 
@@ -21,9 +21,7 @@ def sidebar():
         st.markdown("---")
         fn = get_meta("filename")
         if fn: st.success(f"Current: **{fn}**")
-        st.info("New uploads overwrite old data.")
         st.markdown("---")
-        st.caption("v3.0 · No-History Mode")
 
 def tab_upload():
     st.markdown("### Upload & Analyze")
@@ -35,6 +33,8 @@ def tab_upload():
             path = tmp.name
         try:
             with st.status("Analyzing...") as s:
+                from db import set_meta
+                set_meta("filename", up.name)
                 EmailPipeline().run(path)
                 s.update(label="Complete!", state="complete")
             st.rerun()
