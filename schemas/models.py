@@ -1,8 +1,6 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 from typing import List, Optional, Literal
 from datetime import datetime
-import re
-
 
 class EmailInput(BaseModel):
     email_id: str
@@ -16,22 +14,12 @@ class EmailInput(BaseModel):
     class Config:
         populate_by_name = True
 
-    @field_validator("from_address", "to_address")
-    @classmethod
-    def valid_email(cls, v: str) -> str:
-        v = v.strip()
-        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", v):
-            raise ValueError(f"Invalid email: {v}")
-        return v.lower()
-
-
 class EvidenceLine(BaseModel):
     line_number: int = 1
     text: str
     risk_level: Literal["low", "medium", "high", "critical"] = "low"
     reason: str
     confidence: float = Field(default=0.5, ge=0.0, le=1.0)
-
 
 class EmailAnalysis(BaseModel):
     email_id: str
@@ -44,19 +32,11 @@ class EmailAnalysis(BaseModel):
     manual_review_reason: Optional[str] = None
     processing_duration_ms: int = 0
 
-    @field_validator("classifications")
-    @classmethod
-    def clean_classifications(cls, v: List[str]) -> List[str]:
-        cleaned = list({c.strip().lower() for c in v if c and isinstance(c, str)})
-        return cleaned or ["none"]
-
-
 class ScoringFactors(BaseModel):
     confidence_score: float
     criticality_score: float
     evidence_contribution: float = 0.0
     sender_modifier: float = 1.0
-
 
 class EmailScoringResult(BaseModel):
     email_id: str
@@ -66,7 +46,6 @@ class EmailScoringResult(BaseModel):
     display_label: str = ""
     scoring_factors: ScoringFactors
     rank: int = 0
-
 
 class PipelineOutput(BaseModel):
     batch_id: str
