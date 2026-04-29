@@ -48,25 +48,29 @@ class AnalysisAgent:
         return analyses
 
     def _build_analysis(self, email: EmailInput, res: Dict[str, Any]) -> EmailAnalysis:
-        cls = [str(c).strip().lower() for c in res.get("classifications", ["normal_email"]) if c] or ["normal_email"]
+        from prompts.prompts import CAT_MAP
+        cls_raw = [str(c).strip().lower() for c in res.get("classifications", []) if c]
+        cls = [CAT_MAP.get(c, c) for c in cls_raw] or ["none"]
         conf = max(0.0, min(1.0, float(res.get("confidence", 0.5))))
         ev = self._parse_evidence(res.get("evidence_lines", []))
-        if cls != ["normal_email"] and not ev: conf = min(conf, settings.CONFIDENCE_THRESHOLD - 0.05)
+        if cls != ["none"] and not ev: conf = min(conf, settings.CONFIDENCE_THRESHOLD - 0.05)
         rev, reason = bool(res.get("manual_review_required", False)), res.get("manual_review_reason")
-        if conf < settings.CONFIDENCE_THRESHOLD and cls != ["normal_email"]:
+        if conf < settings.CONFIDENCE_THRESHOLD and cls != ["none"]:
             rev, reason = True, reason or f"Low confidence: {conf:.2f}"
         return EmailAnalysis(email_id=email.email_id, classifications=cls, tags=[t.strip().lower() for t in res.get("tags", []) if isinstance(t, str)], confidence=conf, evidence_lines=ev, reasoning=str(res.get("reasoning", ""))[:2000], manual_review_required=rev, manual_review_reason=reason)
 
     def _parse_evidence(self, raw: Any) -> List[EvidenceLine]:
         if not isinstance(raw, list): return []
         lines = []
+        LVL_MAP = {"l1": "low", "l2": "medium", "l3": "high", "l4": "critical"}
         for idx, item in enumerate(raw):
             if not isinstance(item, dict) or not str(item.get("text", "")).strip(): continue
             risk = str(item.get("risk_level", "low")).lower()
+            risk = LVL_MAP.get(risk, risk)
             if risk not in {"low", "medium", "high", "critical"}: risk = "low"
             try: lines.append(EvidenceLine(line_number=int(item.get("line_number", idx+1)), text=str(item.get("text", ""))[:2000], risk_level=risk, reason=str(item.get("reason", ""))[:500], confidence=max(0.0, min(1.0, float(item.get("confidence", 0.5))))))
             except: pass
         return lines
 
     def _fallback(self, email_id: str):
-        return EmailAnalysis(email_id=email_id, classifications=["normal_email"], confidence=0.0, reasoning="Analysis failed — manual review required.", manual_review_required=True, manual_review_reason="Processing error")
+        return EmailAnalysis(email_id=email_id, classifications=["none"], confidence=0.0, reasoning="Analysis failed — manual review required.", manual_review_required=True, manual_review_reason="Processing error")
