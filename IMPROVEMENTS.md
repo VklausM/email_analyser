@@ -1,0 +1,14 @@
+## tasks
+- add streamlit ui for this
+- option to upload xlsx file
+- dashboard tab where all summary will be visible
+- use sqlite internal db to store data
+- matrix tunable and all otehr factors tunable from config section
+- manual review tab contains manual review email and all details with option to select true positive or false positive thus creating feedback loop reenforcement learning for agent
+- then ranked emails will be ranked emails based on score
+- on click of the email item in ranked email it will show evidence lines and reason for that
+- all saved in db and tunable config
+- email tags with multiple categories
+- updated scoring algorithm, considering other factors too
+- robust and good ui
+- all code generated humanly and feel humanly with miimal comments as a human senior developer
