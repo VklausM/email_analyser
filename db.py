@@ -26,6 +26,11 @@ def transaction():
 
 def init_db():
     with transaction() as conn:
+        # Schema migration: check for old column
+        r = conn.execute("PRAGMA table_info(emails)").fetchall()
+        if any(row["name"] == "batch_id" for row in r):
+            conn.executescript("DROP TABLE IF EXISTS emails; DROP TABLE IF EXISTS analyses; DROP TABLE IF EXISTS batches; DROP TABLE IF EXISTS feedback;")
+        
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS emails (id INTEGER PRIMARY KEY AUTOINCREMENT, email_id TEXT, from_addr TEXT, to_addr TEXT, subject TEXT, body TEXT, date TEXT);
             CREATE TABLE IF NOT EXISTS analyses (id INTEGER PRIMARY KEY AUTOINCREMENT, email_id TEXT, classifications TEXT, tags TEXT, confidence REAL, reasoning TEXT, evidence_lines TEXT, manual_review_required INTEGER, manual_review_reason TEXT, risk_score REAL, criticality_level TEXT, rank INTEGER);
