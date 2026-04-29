@@ -43,10 +43,8 @@ def tab_upload():
                 with st.status("Initializing analysis pipeline...", expanded=True) as s:
                     from db import set_meta
                     set_meta("filename", up.name)
-                    s.write("📂 Loading and preprocessing emails...")
                     pipeline = EmailPipeline()
-                    s.write("🤖 Running LLM Analysis and Risk Scoring...")
-                    pipeline.run(path)
+                    pipeline.run(path, callback=s.write)
                     s.update(label="Analysis complete!", state="complete")
                 st.session_state.analysis_done = True
                 st.session_state.uploader_key += 1

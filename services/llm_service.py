@@ -28,6 +28,7 @@ class LLMService:
                 resp = self.client.invoke(msg, response_format={"type": "json_object"})
                 if not resp.content.strip(): raise LLMError("Empty response")
                 return self._normalize(self._parse(resp.content.strip()))
+            except Exception as e:
                 last = e
                 log.debug("LLM Call Attempt %d failed: %s", i+1, e)
                 if i < settings.MAX_RETRIES - 1:
@@ -49,7 +50,7 @@ class LLMService:
             if "results" in data and isinstance(data["results"], list): return data
             for k in ("emails", "analyses", "items"):
                 if k in data and isinstance(data[k], list): return {"results": data[k]}
-            return data # Return flat dict for single-item results (like scoring)
+            return data
         if isinstance(data, list): return {"results": data}
         return {"results": []}
 

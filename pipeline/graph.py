@@ -23,10 +23,14 @@ class EmailPipeline:
         self.specialist = ScoringAgent()
         self._graph = self._build_graph()
 
-    def run(self, file_path: str) -> PipelineOutput:
+    def run(self, file_path: str, callback=None) -> PipelineOutput:
         log.info("Starting Multi-Agent Compliance Audit: %s", file_path)
+        self.callback = callback
         state = self._graph.invoke({"file_path": file_path, "emails": [], "analyses": [], "results": [], "output": None})
         return state["output"]
+
+    def _update_status(self, msg: str):
+        if self.callback: self.callback(msg)
 
     def _build_graph(self):
         graph = StateGraph(PipelineState)
@@ -43,6 +47,7 @@ class EmailPipeline:
         return graph.compile()
 
     def _load_data(self, state: PipelineState):
+        self._update_status("📂 Loading and formatting incoming data...")
         emails = load_emails(state["file_path"])
         set_meta("total_emails", str(len(emails)))
         for e in emails:
@@ -50,10 +55,12 @@ class EmailPipeline:
         return {**state, "emails": emails}
 
     def _inspect_compliance(self, state: PipelineState):
+        self._update_status("🔍 Compliance Inspector (Agent 1) is screening emails...")
         log.info("Agent 1: Performing initial compliance inspection...")
         return {**state, "analyses": self.inspector.inspect_emails(state["emails"])}
 
     def _assess_risk(self, state: PipelineState):
+        self._update_status("⚖️ Risk Specialist (Agent 2) is conducting deep assessment...")
         log.info("Agent 2: Specialist conducting risk assessment...")
         return {**state, "results": self.specialist.score_batch(state["emails"], state["analyses"])}
 
