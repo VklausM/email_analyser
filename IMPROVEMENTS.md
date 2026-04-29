@@ -12,3 +12,5 @@
 - updated scoring algorithm, considering other factors too
 - robust and good ui
 - all code generated humanly and feel humanly with miimal comments as a human senior developer
+- for emails that are low risk and all instead of making it "unknown" make it "normal email"
+- restructure the project to simlify for poc purpose- use agentic approach -- langgraph -- but mkae it simpler but robust, as this feels totally ai generated i want manual generated or human written
