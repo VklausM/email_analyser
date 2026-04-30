@@ -118,8 +118,10 @@ def tab_config():
     with open("scoring_matrix.json") as f: w = json.load(f)
     new_w = {}
     cols = st.columns(3)
+    w.pop("none", 0)
     for i, (k, v) in enumerate(sorted(w.items())):
         with cols[i%3]: new_w[k] = st.slider(k, 0.0, 1.0, float(v), 0.05, key=f"w_{k}")
+    new_w["none"] = 0
     if st.button("Save Weights"):
         with open("scoring_matrix.json", "w") as f: json.dump(new_w, f, indent=2)
         settings.SCORING_WEIGHTS = new_w

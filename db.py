@@ -26,10 +26,7 @@ def transaction():
 
 def init_db():
     with transaction() as conn:
-        # Schema migration: check for old column
-        r = conn.execute("PRAGMA table_info(emails)").fetchall()
-        if any(row["name"] == "batch_id" for row in r):
-            conn.executescript("DROP TABLE IF EXISTS emails; DROP TABLE IF EXISTS analyses; DROP TABLE IF EXISTS batches; DROP TABLE IF EXISTS feedback;")
+        # conn.executescript("DROP TABLE IF EXISTS emails; DROP TABLE IF EXISTS analyses; DROP TABLE IF EXISTS feedback; DROP TABLE IF EXISTS sender_scores;DROP TABLE IF EXISTS config;DROP TABLE IF EXISTS meta;")
         
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS emails (id INTEGER PRIMARY KEY AUTOINCREMENT, email_id TEXT, from_addr TEXT, to_addr TEXT, subject TEXT, body TEXT, date TEXT);
@@ -73,8 +70,22 @@ def record_feedback(eid, v, n=""):
     with transaction() as conn:
         conn.execute("INSERT INTO feedback (email_id, verdict, reviewer_note) VALUES (?,?,?)", (eid, v, n))
         if sender:
-            if v == "tp": conn.execute("INSERT INTO sender_scores VALUES (?, 1.05, 1, 0) ON CONFLICT(sender) DO UPDATE SET weight_modifier = MIN(2.0, weight_modifier + 0.05), tp_count = tp_count + 1", (sender,))
-            else: conn.execute("INSERT INTO sender_scores VALUES (?, 0.95, 0, 1) ON CONFLICT(sender) DO UPDATE SET weight_modifier = MAX(0.1, weight_modifier - 0.05), fp_count = fp_count + 1", (sender,))
+            if v == "tp":
+                conn.execute("""
+                        INSERT INTO sender_scores (sender, weight_modifier, fp_count, tp_count)
+                        VALUES (?, 1.05, 0, 1)
+                        ON CONFLICT(sender) DO UPDATE SET
+                            weight_modifier = MIN(2.0, weight_modifier + 0.05),
+                            tp_count = tp_count + 1
+                    """, (sender,))
+            else:
+                conn.execute("""
+                        INSERT INTO sender_scores (sender, weight_modifier, fp_count, tp_count)
+                        VALUES (?, 0.95, 1, 0)
+                        ON CONFLICT(sender) DO UPDATE SET
+                            weight_modifier = MAX(0.1, weight_modifier - 0.05),
+                            fp_count = fp_count + 1
+                    """, (sender,))
 
 def get_sender_modifier(s):
     with get_connection() as conn:
