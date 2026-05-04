@@ -20,7 +20,7 @@ def sidebar():
         st.markdown("## 🔍 Email Analyser\nBFSI Compliance")
         st.markdown("---")
         fn = get_meta("filename")
-        if fn: st.success(f"Current: **{fn}**")
+        if fn: st.success(f"History: **{fn}**")
         else: st.info("No file uploaded yet.")
         st.markdown("---")
 

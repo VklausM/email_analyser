@@ -61,7 +61,7 @@ def get_results():
 
 def get_manual_review_emails():
     with get_connection() as conn:
-        return [dict(r) for r in conn.execute("SELECT a.*, e.from_addr, e.to_addr, e.subject, e.body FROM analyses a JOIN emails e ON a.email_id = e.email_id WHERE a.manual_review_required = 1 ORDER BY a.risk_score DESC").fetchall()]
+        return [dict(r) for r in conn.execute("SELECT a.*, e.from_addr, e.to_addr, e.subject, e.body FROM analyses a JOIN emails e ON a.email_id = e.email_id LEFT JOIN feedback f ON a.email_id = f.email_id WHERE a.manual_review_required = 1 AND f.email_id IS NULL ORDER BY a.risk_score DESC").fetchall()]
 
 def record_feedback(eid, v, n=""):
     with get_connection() as conn:

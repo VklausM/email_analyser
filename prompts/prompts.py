@@ -1,15 +1,52 @@
 import json
 
-try:
-    with open("scoring_matrix.json") as f:
-        SCORING_MATRIX = json.load(f)
-    CAT_MAP = {f"type_{i:02d}": name for i, name in enumerate(SCORING_MATRIX.keys())}
-    REVERSE_CAT_MAP = {name: cat_id for cat_id, name in CAT_MAP.items()}
-    CATEGORIES_DESC = "\n".join([f"- {cid}: {name}" for cid, name in CAT_MAP.items()])
-except:
-    CAT_MAP = {"type_01": "risk_detected", "type_02": "normal"}
-    REVERSE_CAT_MAP = {"risk_detected": "type_01", "normal": "type_02"}
-    CATEGORIES_DESC = "- type_01: risk_detected\n- type_02: normal"
+def load_scoring_matrix(path="scoring_matrix.json"):
+    try:
+        with open(path) as f:
+            data = json.load(f)
+
+        if not isinstance(data, dict) or not data:
+            raise ValueError("Invalid scoring matrix format")
+
+        return data
+
+    except Exception as e:
+        print(f"[WARN] Failed to load scoring matrix: {e}")
+        # Consistent fallback
+        return {
+            "risk_detected": 0.8,
+            "normal": 0.0
+        }
+
+
+SCORING_MATRIX = load_scoring_matrix()
+
+def normalize_key(key: str) -> str:
+    return key.strip().lower().replace(" ", "_")
+
+
+SCORING_MATRIX = {
+    normalize_key(k): v for k, v in SCORING_MATRIX.items()
+}
+
+sorted_keys = sorted(SCORING_MATRIX.keys())
+
+CAT_MAP = {
+    f"type_{i:02d}": name
+    for i, name in enumerate(sorted_keys)
+}
+
+REVERSE_CAT_MAP = {
+    name: cat_id
+    for cat_id, name in CAT_MAP.items()
+}
+
+CATEGORY_SCORES = SCORING_MATRIX
+
+CATEGORIES_DESC = "\n".join(
+    [f"- {cid}: {name}" for cid, name in CAT_MAP.items()]
+)
+
 
 ANALYSIS_PROMPT = f"""Audit text patterns carefully. 
 
@@ -24,17 +61,17 @@ Levels:
 - L2: Minor anomaly.
 - L1: Routine observation.
 
-Output JSON (MUST contain a "results" key with the list of findings):
+Output JSON (MUST contain a "results" key with the list of findings) (example):
 {{
   "results": [
     {{
       "email_id": "...",
       "classifications": ["type_01"], 
       "tags": ["urgent"],
-      "confidence": 0.9,
+      "confidence": 0.75,
       "reasoning": "...",
       "evidence_lines": [{{ "line_number": 1, "text": "...", "risk_level": "L1|L2|L3|L4", "reason": "..." }}],
-      "manual_review_required": false
+      "manual_review_required": false|true
     }}
   ]
 }}
@@ -58,9 +95,9 @@ Findings: {reasoning}
 Evidence count: {evidence_count}
 Confidence: {confidence}
 
-Return ONLY a JSON object:
+Return ONLY a JSON object (example):
 {{
-  "score": 85,
+  "score": 90,
   "notes": "Short summary"
 }}
 """

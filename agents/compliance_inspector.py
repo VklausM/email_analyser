@@ -21,6 +21,7 @@ class ComplianceInspector:
         
         for i in range(0, len(valid), batch_size):
             chunk = valid[i:i + batch_size]
+            log.debug(f"Processing compliance for mail {i} to {i+batch_size}")
             try:
                 raw = self.llm.call_json(ANALYSIS_PROMPT + "\n".join([f"ID: {e.email_id}\n{e.body}" for e in chunk]))
                 results.extend(self._parse_results(raw, chunk))
@@ -44,7 +45,7 @@ class ComplianceInspector:
                     l["risk_level"] = LEVELS.get(str(l.get("risk_level")).lower(), "low")
                     ev.append(EvidenceLine(**l))
                 
-                conf = float(res.get("confidence", 0.9))
+                conf = float(res.get("confidence", 0.6))
                 review = bool(res.get("manual_review_required", False))
                 if is_safe: review = False
                 
@@ -62,4 +63,4 @@ class ComplianceInspector:
         return final
 
     def _normal_result(self, eid: str, msg: str):
-        return EmailAnalysis(email_id=eid, classifications=["none"], confidence=1.0, reasoning=msg, manual_review_required=False)
+        return EmailAnalysis(email_id=eid, classifications=["none"], confidence=1.0, reasoning=msg, manual_review_required=True)

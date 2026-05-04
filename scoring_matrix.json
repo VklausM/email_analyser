@@ -1,15 +1,15 @@
 {
   "bribery": 0.7,
-  "compliance": 0.6,
-  "financial risk": 0.7,
-  "fraud": 0.85,
-  "insider_trading": 0.6,
-  "malicious": 0.5,
-  "market_manipulation": 0.3,
-  "money_laundering": 0.5,
+  "compliance": 0.45,
+  "financial risk": 0.8,
+  "fraud": 0.5,
+  "insider_trading": 0.75,
+  "malicious": 0.7,
+  "market_manipulation": 0.4,
+  "money_laundering": 0.65,
   "phishing": 0.6,
   "quid_pro_quo": 0.85,
   "scam": 0.6,
-  "secrecy_breach": 0.7,
+  "secrecy_breach": 0.75,
   "none": 0
 }
